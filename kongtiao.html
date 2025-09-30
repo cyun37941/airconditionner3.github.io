@@ -1,0 +1,291 @@
+<meta property="og:title" content="微信空调模拟器">
+<meta property="og:description" content="一起来吹空调，清凉一夏！">
+<meta property="og:image" content="https://picsum.photos/300/300"> <!-- 替换成你的图片链接 -->
+<meta property="og:url" content="你的空调页面链接">
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>微信空调（声音修复版）</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #f5f7fa;
+            touch-action: manipulation;
+        }
+        .ac-btn {
+            -webkit-tap-highlight-color: transparent;
+        }
+        .sound-guide {
+            backdrop-filter: blur(5px);
+        }
+        @keyframes wind {
+            0% { transform: translateX(-50px) opacity(0.3); }
+            50% { opacity(0.6); }
+            100% { transform: translateX(50px) opacity(0.3); }
+        }
+        .wind {
+            animation: wind 1.2s infinite;
+        }
+    </style>
+</head>
+<body class="p-4">
+    <!-- 首次点击引导层（解决声音限制） -->
+    <div id="sound-guide" class="sound-guide fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl p-6 max-w-xs text-center">
+            <i class="fa fa-volume-up text-4xl text-blue-500 mb-4"></i>
+            <h3 class="text-xl font-bold mb-2">点击解锁声音</h3>
+            <p class="text-gray-500 mb-4">微信需要您先点击一次才能播放声音</p>
+            <button id="unlock-sound" class="bg-blue-500 text-white py-2 px-6 rounded-full">
+                点击解锁
+            </button>
+        </div>
+    </div>
+
+    <!-- 音频元素 -->
+    <audio id="click-sound" preload="auto">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-interface-hint-notification-911.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="power-sound" preload="auto">
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-tech-device-power-up-2540.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="wind-sound" preload="auto" loop>
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-air-conditioner-hum-2774.mp3" type="audio/mpeg">
+    </audio>
+
+    <div class="max-w-md mx-auto bg-white rounded-3xl shadow-lg overflow-hidden">
+        <!-- 空调标题 -->
+        <div class="bg-blue-500 text-white p-4 text-center">
+            <h1 class="text-xl font-bold">微信空调</h1>
+            <p class="text-sm opacity-80" id="status">点击电源开启</p>
+        </div>
+        
+        <!-- 温度显示 -->
+        <div class="py-8 text-center relative overflow-hidden">
+            <div id="wind-effect" class="absolute inset-0 pointer-events-none opacity-0">
+                <div class="wind absolute top-1/4 left-0 w-full h-1 bg-white/50"></div>
+                <div class="wind absolute top-2/4 left-0 w-full h-1 bg-white/50" style="animation-delay: 0.4s"></div>
+                <div class="wind absolute top-3/4 left-0 w-full h-1 bg-white/50" style="animation-delay: 0.8s"></div>
+            </div>
+            
+            <div class="relative inline-block">
+                <span id="temp" class="text-6xl font-bold text-blue-500">--</span>
+                <span class="text-2xl text-blue-500">°C</span>
+            </div>
+            <p class="text-gray-500 mt-2" id="feel">享受清凉一夏</p>
+        </div>
+        
+        <!-- 控制面板 -->
+        <div class="bg-gray-50 p-6">
+            <!-- 电源按钮 -->
+            <div class="flex justify-center mb-8">
+                <button id="power" class="ac-btn w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center text-2xl shadow">
+                    <i class="fa fa-power-off text-gray-500"></i>
+                </button>
+            </div>
+            
+            <!-- 温度调节 -->
+            <div class="flex justify-center items-center gap-6 mb-8">
+                <button id="minus" class="ac-btn w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-xl shadow disabled:opacity-50" disabled>
+                    <i class="fa fa-minus text-blue-500"></i>
+                </button>
+                
+                <div class="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
+                    <i class="fa fa-thermometer-half text-2xl text-blue-500"></i>
+                </div>
+                
+                <button id="plus" class="ac-btn w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center text-xl shadow disabled:opacity-50" disabled>
+                    <i class="fa fa-plus text-blue-500"></i>
+                </button>
+            </div>
+            
+            <!-- 风速控制 -->
+            <div class="mb-6">
+                <p class="text-center text-gray-500 mb-3">风速调节</p>
+                <div class="flex justify-center gap-4">
+                    <button class="speed-btn ac-btn w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center shadow disabled:opacity-50" data-speed="1" disabled>
+                        <i class="fa fa-wind text-blue-500"></i>
+                    </button>
+                    <button class="speed-btn ac-btn w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center shadow disabled:opacity-50" data-speed="2" disabled>
+                        <i class="fa fa-wind text-blue-500"></i>
+                    </button>
+                    <button class="speed-btn ac-btn w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center shadow disabled:opacity-50" data-speed="3" disabled>
+                        <i class="fa fa-wind text-blue-500"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 音效元素
+        const sounds = {
+            click: document.getElementById('click-sound'),
+            power: document.getElementById('power-sound'),
+            wind: document.getElementById('wind-sound')
+        };
+        
+        // 状态数据
+        const state = {
+            power: false,
+            temp: 26,
+            speed: 1,
+            soundUnlocked: false // 声音是否已解锁
+        };
+        
+        // DOM元素
+        const elements = {
+            powerBtn: document.getElementById('power'),
+            minusBtn: document.getElementById('minus'),
+            plusBtn: document.getElementById('plus'),
+            tempDisplay: document.getElementById('temp'),
+            statusDisplay: document.getElementById('status'),
+            feelDisplay: document.getElementById('feel'),
+            speedBtns: document.querySelectorAll('.speed-btn'),
+            windEffect: document.getElementById('wind-effect'),
+            soundGuide: document.getElementById('sound-guide'),
+            unlockSoundBtn: document.getElementById('unlock-sound')
+        };
+        
+        // 播放音效的函数
+        function playSound(sound) {
+            if (!state.soundUnlocked) return;
+            
+            try {
+                sound.currentTime = 0;
+                sound.volume = 0.3;
+                sound.play();
+            } catch (e) {
+                console.log("播放失败:", e);
+            }
+        }
+        
+        // 解锁声音
+        function unlockSound() {
+            // 隐藏引导层
+            elements.soundGuide.classList.add('opacity-0');
+            setTimeout(() => {
+                elements.soundGuide.style.display = 'none';
+            }, 500);
+            
+            // 标记为已解锁
+            state.soundUnlocked = true;
+            
+            // 预播放一次无声音效来激活音频上下文
+            sounds.click.volume = 0;
+            sounds.click.play().then(() => {
+                sounds.click.pause();
+                sounds.click.volume = 0.3;
+            });
+        }
+        
+        // 更新显示
+        function updateDisplay() {
+            elements.tempDisplay.textContent = state.temp;
+            
+            if (state.power) {
+                elements.statusDisplay.textContent = `运行中 · 风速 ${state.speed}档`;
+                
+                if (state.temp <= 20) {
+                    elements.feelDisplay.textContent = "好冷啊~ 快加件衣服";
+                } else if (state.temp <= 24) {
+                    elements.feelDisplay.textContent = "舒服~ 刚刚好";
+                } else {
+                    elements.feelDisplay.textContent = "有点热，调低一点吧";
+                }
+                
+                elements.windEffect.style.opacity = state.speed * 0.3;
+                sounds.wind.volume = state.speed * 0.2;
+            } else {
+                elements.statusDisplay.textContent = "已关闭 · 点击电源开启";
+                elements.feelDisplay.textContent = "天气好热，快开空调";
+                elements.windEffect.style.opacity = 0;
+                sounds.wind.pause();
+            }
+            
+            elements.speedBtns.forEach(btn => {
+                const speed = parseInt(btn.dataset.speed);
+                if (speed === state.speed && state.power) {
+                    btn.classList.remove('bg-gray-200');
+                    btn.classList.add('bg-blue-500', 'text-white');
+                } else {
+                    btn.classList.remove('bg-blue-500', 'text-white');
+                    btn.classList.add('bg-gray-200');
+                }
+            });
+        }
+        
+        // 事件监听
+        function setupEvents() {
+            // 声音解锁按钮
+            elements.unlockSoundBtn.addEventListener('click', unlockSound);
+            
+            // 电源按钮
+            elements.powerBtn.addEventListener('click', () => {
+                state.power = !state.power;
+                playSound(sounds.power);
+                
+                if (state.power) {
+                    elements.powerBtn.classList.remove('bg-gray-200');
+                    elements.powerBtn.classList.add('bg-blue-500', 'text-white');
+                    elements.powerBtn.classList.add('bg-blue-500', 'text-white');
+                    elements.powerBtn.innerHTML = '<i class="fa fa-power-off"></i>';
+                    
+                    elements.minusBtn.disabled = false;
+                    elements.plusBtn.disabled = false;
+                    elements.speedBtns.forEach(btn => btn.disabled = false);
+                    
+                    playSound(sounds.wind);
+                } else {
+                    elements.powerBtn.classList.remove('bg-blue-500', 'text-white');
+                    elements.powerBtn.classList.add('bg-gray-200', 'text-gray-500');
+                    elements.powerBtn.innerHTML = '<i class="fa fa-power-off"></i>';
+                    
+                    elements.minusBtn.disabled = true;
+                    elements.plusBtn.disabled = true;
+                    elements.speedBtns.forEach(btn => btn.disabled = true);
+                }
+                
+                updateDisplay();
+            });
+            
+            // 温度调节按钮
+            elements.minusBtn.addEventListener('click', () => {
+                if (state.temp > 16) {
+                    state.temp--;
+                    playSound(sounds.click);
+                    updateDisplay();
+                }
+            });
+            
+            elements.plusBtn.addEventListener('click', () => {
+                if (state.temp < 30) {
+                    state.temp++;
+                    playSound(sounds.click);
+                    updateDisplay();
+                }
+            });
+            
+            // 风速按钮
+            elements.speedBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    state.speed = parseInt(btn.dataset.speed);
+                    playSound(sounds.click);
+                    updateDisplay();
+                });
+            });
+        }
+        
+        // 初始化
+        function init() {
+            updateDisplay();
+            setupEvents();
+        }
+        
+        init();
+    </script>
+</body>
+</html>
